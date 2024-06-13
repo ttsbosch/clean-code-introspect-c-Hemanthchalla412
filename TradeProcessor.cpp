@@ -3,67 +3,60 @@
 #include <string.h>
 #include <errno.h>
 
-typedef struct {
-    char SC[256]; // SourceCurrency
-    char DC[256]; // DestibationCurrency
-    float Lots;
-    double Price;
-} TR;
 
-
-char** SplitString(const char* str, char delimiter) {
-    int count = 0;
-    const char* ptr = str;
+char** SplitString(const char* InputString, char delimiter) {
+    int numofdelimiter = 0;
+    const char* ptr = InputString;
     while (*ptr != '\0') {
         if (*ptr++ == delimiter) {
-            count++;
+            numofdelimiter++;
         }
     }
 
-    char** tokens = (char**)malloc(sizeof(char*) * (count + 2));
-    int i = 0;
-    ptr = str;
-    char* token = (char*)malloc(strlen(str) + 1);
-    int j = 0;
+    char** tokens = (char**)malloc(sizeof(char*) * (numofdelimiter + 2));
+    int Index = 0;
+    ptr = InputString;
+    char* token = (char*)malloc(strlen(InputString) + 1);
+    int TokenIndex = 0;
     while (*ptr != '\0') {
         if (*ptr == delimiter) {
-            token[j] = '\0';
-            tokens[i++] = strdup(token);
-            j = 0;
+            token[TokenIndex] = '\0';
+            tokens[Index++] = strdup(token);
+            TokenIndex = 0;
         } else {
-            token[j++] = *ptr;
+            token[TokenIndex++] = *ptr;
         }
         ptr++;
     }
-    token[j] = '\0';
-    tokens[i++] = strdup(token);
-    tokens[i] = NULL;
+    token[TokenIndex] = '\0';
+    tokens[Index++] = strdup(token);
+    tokens[Index] = NULL;
     free(token);
     return tokens;
 }
 
 
-int intGetFromString(const char* str, int* value) {
+Bool TryCoverStringToInt(const char* str, int* value) {
     char* endptr;
     *value = strtol(str, &endptr, 10);
     if (endptr == str) {
         return 0;
     }
-    return 1;
+    return TRUE;
 }
 
-int toDouble(const char* str, double* value) {
+Bool TryConvertStringToDouble(const char* str, double* value) {
     char* endptr;
     *value = strtod(str, &endptr);
     if (endptr == str) {
         return 0;
     }
-    return 1;
+    return TRUE;
 }
 
-void Process(FILE* stream) {
+void ConvertTradeRecordFromCSVToXML(FILE* stream) {
     char line[1024];
-    TR objects[1024];
+    TradeRecords objects[1024];
     int lineCount = 0;
     int objectCount = 0;
 
@@ -86,25 +79,25 @@ void Process(FILE* stream) {
             continue;
         }
 
-        int tam;
-        if (!intGetFromString(fields[1], &tam)) {
+        int tradeamount;
+        if (!intGetFromString(fields[1], &tradeamount)) {
             fprintf(stderr, "WARN: Trade amount on line %d not a valid integer: '%s'\n", lineCount + 1, fields[1]);
         }
 
-        double tp;
-        if (!toDouble(fields[2], &tp)) {
+        double tradeprice;
+        if (!toDouble(fields[2], &tradeprice)) {
             fprintf(stderr, "WARN: Trade price on line %d not a valid decimal: '%s'\n", lineCount + 1, fields[2]);
         }
 
-        strncpy(objects[objectCount].SC, fields[0], 3);
-        strncpy(objects[objectCount].DC, fields[0] + 3, 3);
-        objects[objectCount].Lots = tam / LotSize;
-        objects[objectCount].Price = tp;
+        strncpy(objects[objectCount].SourceCurrency, fields[0], 3);
+        strncpy(objects[objectCount].DestinationCurrency, fields[0] + 3, 3);
+        objects[objectCount].Lots = tradeamount / LotSize;
+        objects[objectCount].Price = tradeprice;
         objectCount++;
         lineCount++;
     }
 
-    FILE* outFile = fopen("output.xml", "w");
+    FILE* outFile = fopen("ConvertedTradeFile.xml", "w");
     fprintf(outFile, "<TradeRecords>\n");
     for (int i = 0; i < objectCount; i++) {
         fprintf(outFile, "\t<TradeRecord>\n");
@@ -118,4 +111,3 @@ void Process(FILE* stream) {
     fclose(outFile);
     printf("INFO: %d trades processed\n", objectCount);
 }
-
